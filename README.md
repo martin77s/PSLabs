@@ -29,3 +29,10 @@ PowerShell Training Labs
 ### 5. WMI and WSMan
 
     WMI, PSRemoting, CalculatedProperties
+
+
+### Packaging and Logging
+
+    Commenting
+    Logging (streams, files and eventlog)
+    Script Libraries and Module Packaging
