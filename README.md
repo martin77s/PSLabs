@@ -31,7 +31,7 @@ PowerShell Training Labs
     WMI, PSRemoting, CalculatedProperties
 
 
-### Packaging and Logging
+### 6. Packaging and Logging
 
     Commenting
     Logging (streams, files and eventlog)
