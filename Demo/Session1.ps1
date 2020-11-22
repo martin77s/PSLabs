@@ -435,9 +435,120 @@ New-ItemProperty -Path .\ -Name name3 -Value 3 -PropertyType string
 
 cd Cert:\LocalMachine\My
 dir
+
+
+$Path = 'C:\Temp\PSLabs\root'
+$lang = @'
+en-US
+es-ES
+blah blah blah
+he-IL
+fr-FR
+123456789
+it-IT
+zh-CN
+'@
+
+New-Item -Path $Path -ItemType Directory -ErrorAction SilentlyContinue | Out-Null
+Set-Content -Path "$Path\languages.txt" -Value $lang
+
+function Create-ConfigFiles {
+    param(
+        $Path = 'C:\Temp\PSLabs\root',
+        $LanguageFile = 'C:\Temp\PSLabs\root\languages.txt'
+    )
+
+    $configXml = @'
+<Configuration>
+    <Add SourcePath="\\Server\Share" 
+        OfficeClientEdition="32" Channel="Broad">
+    <Product ID="O365ProPlus">
+        <Language ID="{0}" />
+    </Product>
+    </Add>
+</Configuration>
+'@
+
+    Get-Content $LanguageFile | Where-Object { $_ -like '??-??' } | ForEach-Object {
+        New-Item -Path $Path -Name $_ -ItemType Directory -ErrorAction SilentlyContinue | Out-Null
+        $content = ($configXml -f $_)
+        Set-Content -Value ($configXml -f $_) -Path "$Path\$_\configuration.xml" -Force
+    }
+}
 #endregion
 
+
 #region Objects and Registry
+
+# Objects, PSProviders and Registry
+
+$a = 1
+$b = 'qas'
+$a.GetType()
+$a | gm
+
+
+$obj1 = '' | Select-Object -Property Size, Color, Price
+$obj1.Color = 'Red'
+$obj1.Size = 'L'
+$obj1
+$obj1 | gm
+
+$obj2 = New-Object -TypeName PSObject 
+Add-Member -InputObject $obj2 -MemberType NoteProperty Color -Value Green
+Add-Member -InputObject $obj2 -MemberType NoteProperty Size -Value M
+Add-Member -InputObject $obj2 -MemberType NoteProperty Price -Value 4
+$obj2 | gm
+
+
+$obj3 = New-Object -TypeName PSObject -Property @{
+    Color = 'Green'
+    Size  = 'M'
+    Price = 4
+}
+
+$obj4 = New-Object -TypeName PSObject -Property ([ordered]@{
+    Color = 'Yellow'
+    Size  = 'XS'
+    Price = 4
+})
+
+$obj5 = [pscustomobject]@{
+    Color = 'White'
+    Size  = 'XXL'
+    Price = 40
+}
+
+
+$b = Get-Service BITS
+$b2 = New-Object -TypeName PSObject -Property @{
+    Status = $b.Status
+    Name   = $b.Name
+    Date   = (Get-Date)
+}
+
+
+$b = Get-Service BITS | Select-Object Status, Name, Date
+$b.Date = Get-Date
+
+
+# Calculated property
+$c = Get-Service BITS | Select-Object Status, Name, @{Name='Date';Expression={(Get-Date)}}
+
+ps | sort handles -d | select -f 5
+
+$x = Get-Process -Name docker
+$x.Threads.Count
+
+ps | select *, @{N='ThreadsCount';E={$_.Threads.Count}} | sort ThreadsCount -de | select Name, Id, ThreadsCount -f 5
+ps | select Name, Id, @{N='ThreadsCount';E={$_.Threads.Count}} | sort ThreadsCount -de | select -f 5
+
+
+# List files in a folder: FullName, Extension, DaysOld
+dir -File | Select-Object FullName, Extension, @{N='DaysOld';E={((Get-Date)-($_.CreationTime)).Days}}, @{N='Size';E={Get-FriendlySize -Bytes $_.Length}}
+
+
+
 #endregion
 
 
