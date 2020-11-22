@@ -342,13 +342,100 @@ while ((Get-Service BITS).Status -ne 'Running') {
 213213132/1024/1024/1024
 
 
+function Get-FriendlySize {
+    param(
+        $Bytes
+    )
+    $unit = 'bytes', 'kb', 'mb', 'gb', 'tb', 'pb', 'eb', 'zb'
+    for ($i = 0; $i -lt $unit.Count -and ($Bytes -gt 1kb); $i++) { 
+        $Bytes = $Bytes / 1kb
+    }
+    '{0} {1}' -f $Bytes, $unit[$i]
+}
+
+Get-FriendlySize -Bytes 0
+Get-FriendlySize -Bytes 1024
+Get-FriendlySize -Bytes 10244
+Get-FriendlySize -Bytes 10244546564
 
 #endregion
 
 
 #region Strings and Files manipulation
+# Strings and Files manipulation
+"asdasdasd" + 'asdadasdasdas'
+
+$Name = "Martin"
+
+"Hello " + $Name
+
+"Hello $Name" # Expandable string
+'Hello $Name' # Literal string
+
+$s = Get-Service BITS
+
+"The service " + $s.Name + " is now " + $s.Status
+"The service $($s.Name) is now $($s.Status)"
+'The service {0} is now {1}' -f $s.Name, $s.Status
+
+$discount = 0.47
+$price = 1248732
+$items  = 1237110
+'You bought {0:N0} item(s), you got {1:p1} discount, please pay {2:c0}' -f $items, $discount, $price
+
+
+$logFile = 'C:\Temp\log.log'
+$logFile = 'C:\Temp\myScript-{0:yyyy-MM-dd-HH-mm-ss}.log' -f (Get-Date)
 #endregion
 
+
+$Message = "Hello Mr. Martin 'The king' S., 
+You are invited to the "Party". please come at 20:00, and pay many $$
+"
+
+# Here string: @
+$Message = @'
+Hello Mr. {0} 'The king' S., 
+You are invited to the "Party". please come at 20:00
+'@ -f $Name
+
+
+$Message = @"
+Hello Mr. $Name 'The king' S., 
+You are invited to the "Party". please come at 20:00
+"@
+
+
+
+#region *-content, *-item
+
+Get-command -Noun Content
+'Hello World' | Add-Content -Path C:\Temp\PSLabs\1.txt -Encoding UTF8
+Get-Content C:\Temp\PSLabs\1.txt
+
+# Set-Content > file
+# Add-Content >> file
+
+'' | Set-Content -Path C:\Temp\PSLabs\1.txt
+
+cd C:\Temp\PSLabs
+
+Get-ChildItem -Path C:\Temp
+Get-Item -Path C:\Temp
+Get-ItemProperty -Path C:\temp\PSLabs\123.txt -Name IsReadOnly
+(Get-Item -Path C:\temp\PSLabs\123.txt).IsReadOnly
+New-Item -Path .\ -ItemType Directory -Name 123
+New-Item -Path .\ -ItemType File -Name 123.log
+
+Set-Location -Path HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run
+Get-ItemProperty -Path .\
+New-Item -Path .\ -Name 123
+New-ItemProperty -Path .\ -Name name3 -Value 3 -PropertyType string
+
+
+cd Cert:\LocalMachine\My
+dir
+#endregion
 
 #region Objects and Registry
 #endregion
