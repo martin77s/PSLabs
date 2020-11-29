@@ -296,7 +296,7 @@ if($x -gt 1) {
 
 
 # () - grouping, if condition, methods
-# {} - scriptblock
+# {} - scriptblock, place holder for string format
 # [] - array, (syntax = optional)
 
 
@@ -661,6 +661,94 @@ function Get-FriendlySize ($bytes) {
 
 
 #region Strings and Files manipulation
+
+"Hello " + "world"
+
+$Name = Read-Host -Prompt "Enter your name"
+$ToD = "Afternoon"
+
+"Hello " + $Name
+"Hello X, Have a great Y!"
+
+"Hello " + $Name + ", Have a great " + $ToD + "!"
+
+# Expandable string:
+"Hello $Name, Have a great $ToD!"
+
+# Literal string:
+'Hello $Name, Have a great $ToD!'
+
+# $Name = Moshe
+"$Name = $Name"
+'$Name = $Name'
+'$Name = ' + $Name
+"`$Name = $Name"
+
+
+$s = Get-Service (Read-Host -Prompt 'Enter service')
+"The service " + $s.Name + " is now " + $s.Status
+
+"The service $($s.Name) is now $($s.Status)"
+
+$sName = $s.Name
+$sStatus = $s.Status
+"The service $sName is now $sStatus"
+
+
+# String format:
+'The service {0} is now {1}' -f $s.Name,$s.Status
+
+
+$items = 123423123
+$discount = 0.375
+$total = 8761345
+'You bought {0:n0} items, you got {1:p1} discount, please pay {2:c0}' -f $items, $discount, $total
+
+
+$log = "C:\Temp\logs\myScript-{0:yyyyMMddHHmmss}.log" -f (Get-Date)
+
+
+# Server001, Server002... Server 99
+$servers = @()
+$servers += 1..9 | ForEach-Object { 'Server00' + $_ }
+$servers += 10..99 | ForEach-Object { 'Server0' + $_ }
+$servers += 100..999 | ForEach-Object { 'Server' + $_ }
+
+$servers = 1..999 | ForEach-Object { 'Server{0:d3}' -f $_ }
+
+
+
+# Here string
+$Message = @'
+    Hello Martin 'The King' Schvartzman
+    You got a "cool" prize
+    Please send an email to itamar@gmail.com to receive it
+'@
+
+$Message = @"
+    Hello $Name 'The King' Schvartzman
+    You got a "cool" prize
+    Please send an email to itamar@gmail.com to receive it
+"@
+
+
+$Message = @"
+    Hello $Name 'The King' Schvartzman
+    You got a "cool" prize
+    Please send an email to itamar@gmail.com to receive it
+"@
+
+$path = 'C:\Temp\msg.txt'
+$Message >$path
+
+$Message | Out-File $path
+
+Get-Command -Noun Content
+
+$Message | Set-Content $path -Encoding UTF8
+
+
+# Read & Write to file, Concat strings
 #endregion
 
 
