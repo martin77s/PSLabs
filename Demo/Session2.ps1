@@ -840,6 +840,58 @@ dir
 
 
 #region Objects and Registry
+
+
+# Israeli method
+$obj1 = '' | Select-Object Size, Color
+$obj1.Color = 'Red'
+$obj1.Size = 'L'
+$obj1 
+
+# The old way
+$obj2 = New-Object -TypeName PSObject
+Add-Member -InputObject $obj2 -MemberType NoteProperty -Name Size -Value 'M'
+Add-Member -InputObject $obj2 -MemberType NoteProperty -Name Color -Value 'Yellow'
+$obj2
+
+# PSv2 +
+$obj3 = New-Object -TypeName PSObject -Property @{
+    Color = 'Balck'
+    Size  = 'XS'
+}
+
+# PSv4 +
+$obj4 = [pscustomobject]@{
+    Color = 'Pink'
+    Size  = 'XXL'
+}
+
+
+
+
+function New-Person {
+    param([int]$id, [ValidateRange(0,120)]$age, $Name)
+    New-Object -TypeName PSObject -Property @{
+        id   = $id
+        age  = $age
+        Name = $Name
+    }
+}
+
+
+New-Person 1 18 martin
+New-Person 2 22 moshe
+
+
+[ValidateRange(0,120)]$age = 12
+$age = 121
+
+
+
+$string = '20201129'
+$string | Get-Member
+[datetime]::ParseExact($string, 'yyyyMMdd', $null)
+
 #endregion
 
 
