@@ -748,6 +748,56 @@ Get-Command -Noun Content
 $Message | Set-Content $path -Encoding UTF8
 
 
+$Path = 'c:\Temp\PSLabs\root'
+
+New-Item -Path $Path -ItemType Directory
+
+@'
+en-US
+es-ES
+blah blah blah
+he-IL
+fr-FR
+123456789
+it-IT
+zh-CN
+'@ | Set-Content -Path $Path\languages.txt
+
+$content = @'
+<Configuration>
+  <Add SourcePath="\\Server\Share" 
+       OfficeClientEdition="32" Channel="Broad">
+    <Product ID="O365ProPlus">
+      <Language ID="{0}" />
+    </Product>
+  </Add>
+</Configuration>
+'@
+
+Get-Content -Path $Path\languages.txt | Where-Object { $_ -like '??-??' } | ForEach-Object {
+    New-Item -Path $Path -Name $_ -ItemType Directory -ErrorAction SilentlyContinue | Out-Null
+    @"
+<Configuration>
+  <Add SourcePath="\\Server\Share" 
+       OfficeClientEdition="32" Channel="Broad">
+    <Product ID="O365ProPlus">
+      <Language ID="$_" />
+    </Product>
+  </Add>
+</Configuration>
+"@ | Set-Content -Path "$Path\$_\configuration.xml"
+}
+
+
+
+
+Get-Content -Path $Path\languages.txt | Where-Object { $_ -like '??-??' } | ForEach-Object {
+    New-Item -Path $Path -Name $_ -ItemType Directory -ErrorAction SilentlyContinue | Out-Null
+    $content -f $_ | Set-Content -Path "$Path\$_\configuration.xml"
+}
+
+
+
 # Read & Write to file, Concat strings
 #endregion
 
@@ -755,6 +805,35 @@ $Message | Set-Content $path -Encoding UTF8
 
 
 #region *-content, *-item
+
+# Item
+alias dir
+Get-Item -Path .\
+
+Get-Command -Noun Item
+Get-Command -Noun ItemProperty
+
+New-Item -Path C:\Temp\999.txt
+Get-ItemProperty -Path C:\Temp\999.txt -Name CreationTime
+Set-ItemProperty -Path C:\Temp\999.txt -Name CreationTime -Value (Get-Date '1980/09/08 14:28')
+
+cd HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run
+dir
+New-Item -Path .\ -Name KUKU
+New-ItemProperty -Path .\KUKU -Name notepad -Value notepad.exe 
+New-ItemProperty -Path .\KUKU -Name flag2 -Value 1 -PropertyType string
+Remove-Item -Path .\KUKU -Recurse -Force
+
+
+cd Cert:\CurrentUser\My
+dir
+Remove-Item -Path .\A90E1893E38F61D20CB5AA1D8256CCE909B4075B
+
+
+Get-PSProvider
+
+cd alias:
+dir
 #endregion
 
 
