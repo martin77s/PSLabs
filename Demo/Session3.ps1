@@ -342,16 +342,83 @@ Invoke-Command -ComputerName $computers -ScriptBlock { ipconfig.exe /flushdns }
 
 Invoke-Command -ComputerName $computers -ScriptBlock { Invoke-Expression "echo n | gpupdate /force" }
 
+
+
+function Get-SharePermisionsReport {
+    param(
+        $ComputerName = $env:COMPUTERNAME,
+        [Switch]$ShowHiddenShares
+    )
+    foreach ($computer in $ComputerName) {
+        if(Test-Connection -ComputerName $computer -Quiet -Count 1) {
+        #if(Test-NetConnection -ComputerName $computer -CommonTCPPort SMB) {
+        #if(Test-NetConnection -ComputerName $computer -CommonTCPPort WINRM) {
+            $shares = Get-WmiObject -ComputerName $computer -Class Win32_Share
+            #$shares = Get-CimInstance -ComputerName $ComputerName -ClassName Win32_Share
+            $shares | Where-Object { $ShowHiddenShares -or ($_.Name -notlike '*$') } -PipelineVariable share | ForEach-Object {
+                $remotePath = '\\{0}\{1}' -f $computer, ($_.Path -replace ':', '$')
+                (Get-Acl -Path $remotePath).AccessToString.Split([System.Environment]::NewLine) | ForEach-Object {
+                    New-Object -TypeName PSObject -Property @{
+                        ComputerName = $computer
+                        ShareName    = $share.Name
+                        LocalPath    = $share.Path
+                        RemotePath   = $remotePath
+                        NTFS         = $_
+                    }
+                }
+            }
+        }
+    }
+} 
+
+#Get-SharePermisionsReport -ComputerName qweqeqw
+Get-SharePermisionsReport #-ComputerName 'localhost', '127.0.0.1', $env:COMPUTERNAME
+$computer = $env:COMPUTERNAME
 #endregion
 
 
 
+$cred = New-Object -TypeName pscredential -ArgumentList @(
+    'user'
+    'P@55w0rd?' | ConvertTo-SecureString -AsPlainText -Force
+)
+
+$cred | Export-Clixml -Path C:\Temp\PSLabs\cred.xml
 
 
-#region Packaging and Logging
+$importedCreds = Import-Clixml -Path C:\Temp\PSLabs\cred.xml
+$importedCreds.GetNetworkCredential().Password
+New-PSDrive -Name T -PSProvider FileSystem -Root "\\$env:COMPUTERNAME\c$" -Credential $importedCreds
 
-# Commenting
-# Logging (streams, files and eventlog)
-# Script Libraries and Module Packaging
 
-#endregion
+
+#region Encrypt / Decrypt Text Using CMS
+
+# Get the script content as string:
+$scriptContent = Get-Content -Path C:\Temp\plainTextScript.ps1
+
+# Create the certificate:
+$cert = New-SelfSignedCertificate -DnsName PSCms -CertStoreLocation Cert:\CurrentUser\my `
+    -KeyUsage KeyEncipherment, DataEncipherment, KeyAgreement -Type DocumentEncryptionCert
+
+# Encrypt message:
+$scriptContent | Protect-CmsMessage -To $cert -OutFile C:\Temp\encryptedScript.txt
+
+# Verify the encrypted contents:
+notepad C:\Temp\encryptedScript.txt
+
+# Export the certificate:
+$certPassword = 'Password1' | ConvertTo-SecureString -AsPlainText -Force
+Export-PfxCertificate -Cert $cert -FilePath C:\Temp\CMS.pfx -Password $certPassword
+
+
+# *** on the thinClient  ***
+# Import the certificate once:
+$certPassword = 'Password1' | ConvertTo-SecureString -AsPlainText -Force
+Import-PfxCertificate -FilePath C:\Temp\CMS.pfx -CertStoreLocation Cert:\CurrentUser\My -Password $certPassword
+
+# Decrypt message (The cert needs to be installed on the machine):
+$plainTextcode = Unprotect-CmsMessage -Path C:\Temp\encryptedScript.txt
+
+# Invoke the code:
+Invoke-Expression -Command $plainTextcode
