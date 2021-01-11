@@ -165,6 +165,26 @@ $Matches
 $Matches.FirstName
 $Matches.LastName
 
+
+$content = gc "C:\gitRepos\PSLabs\Labs\iis.log"
+# 2013-07-30 00:00:08 SOME1234NAME 10.10.10.100 GET /some/image/path/something.jpg - 80 - 22.22.22.200 Mozilla/5.0+(Windows+NT+5.1;+rv:10.0)+Gecko/20100101+Firefox/10.0 200 0 0
+
+$pattern = '^(?<DateTime>(?<date>\d{4}-\d{2}-\d{2})\s+(?<time>\d{2}:\d{2}:\d{2}))\s+(?<ComputerName>\w+)\s+.*(?<Method>GET|POST)\s(?<Url>.*)\s(.*)\s(\d+)\s-'
+
+$output = $content | ForEach-Object {
+    if($_ -match $pattern) {
+        [PSCustomObject]@{
+             DateTime     = $Matches.DateTime
+             ComputerName = $Matches.ComputerName
+             Method       = $Matches.Method
+             Url          = $Matches.url
+             Segments     = ($Matches.url -split '/').Count -1
+        }
+    }
+}
+
+$output | Where-Object { $_.Segments -gt 3 } | Select-Object Url, Method, Segments
+
 #endregion
 
 
@@ -173,6 +193,154 @@ $Matches.LastName
 
 # WMI, PSRemoting
 
+
+Get-WmiObject -List *service*
+gwmi Win32_Service 
+
+
+Get-WmiObject -Class Win32_NetworkAdapterConfiguration | Where-Object { $_.IPEnabled } | Select-Object  Index, ServiceName, Description,IPAddress
+$primaryNic = Get-WmiObject -Class Win32_NetworkAdapterConfiguration | Where-Object { $_.DefaultIPGateway }
+
+
+$wql = "SELECT Index, ServiceName, Description,IPAddress FROM Win32_NetworkAdapterConfiguration WHERE IPEnabled='TRUE'"
+Get-WmiObject -Query $wql | Select-Object Index, ServiceName, Description,IPAddress
+
+$filter = "IPEnabled='TRUE'"
+Get-WmiObject -Class Win32_NetworkAdapterConfiguration -Filter $filter | Select-Object Index, ServiceName, Description, IPAddress
+
+
+
+Get-WmiObject -CN DC -Class Win32_BIOS
+
+Get-WmiObject -CN DC -Class Win32_ComputerSystem
+
+Get-WmiObject -CN DC -Class Win32_OperatingSystem
+
+Get-WmiObject -CN DC -Class Win32_NetworkAdapterConfiguration
+
+ 
+
+$sessOptionWsMan = New-CimSessionOption -Protocol Wsman
+
+$session = New-CimSession -ComputerName DC -SessionOption $sessOptionWsMan
+
+Get-CimInstance -CimSession $session -ClassName Win32_BIOS
+
+Get-CimInstance -CimSession $session -ClassName Win32_Service
+
+Remove-CimSession -CimSession $session
+
+# 5985/6 (http/s)
+
+# Enable-PSRemoting # As Admin! (OS Clients, OS Server < 2012)
+
+# FW WSMAN, Listner, Service WinRM start + auto
+
+Enable-PSRemoting
+
+ 
+
+$cred = (Get-Credential)
+
+# 1:1
+
+get-service bits
+
+Invoke-Command -ComputerName MS -ScriptBlock { get-service bits } -Credential $cred
+
+Invoke-Command -ComputerName MS,DC -ScriptBlock { get-service bits } -Credential $cred
+
+ 
+
+$s1 = get-service bits
+
+$s2 = Invoke-Command -ComputerName MS -ScriptBlock { get-service bits }
+
+$s3 = Invoke-Command -ComputerName localhost -ScriptBlock { get-service bits }
+
+ 
+
+$s1.GetType()
+
+$s3.GetType()
+
+ 
+
+ 
+
+$b1 = get-service bits
+
+$b1 | Export-Clixml -Path C:\Temp\PSLabs\bits.xml
+
+$b1 | gm
+
+ 
+
+$b2 = Import-Clixml -Path C:\Temp\PSLabs\bits.xml
+
+$b2 | gm
+
+ 
+
+ 
+
+ 
+
+ 
+
+Invoke-Command -ComputerName MS -ScriptBlock { $a = Get-Date }
+
+Invoke-Command -ComputerName MS -ScriptBlock { $a } # Nothing
+
+ 
+
+Invoke-Command -ComputerName MS -ScriptBlock { $a = Get-Date; $a }
+
+$a = Invoke-Command -ComputerName MS -ScriptBlock { Get-Date }
+
+ 
+
+ 
+
+$session = New-PSSession -ComputerName MS
+
+Invoke-Command -Session $session -ScriptBlock { $a = Get-Date }
+
+Invoke-Command -Session $session -ScriptBlock { $a }
+
+Invoke-Command -Session $session -ScriptBlock { $p = Start-Process -FilePath notepad.exe -PassThru }
+
+Invoke-Command -Session $session -ScriptBlock { $p }
+
+Invoke-Command -Session $session -ScriptBlock { $p.Close() }
+
+ 
+
+# 1:1 interactive
+
+Enter-PSSession -ComputerName DC
+
+Exit-PSSession
+
+ 
+
+Enter-PSSession -Session $session
+
+ 
+
+ 
+
+# 1:many
+
+$computers = Get-Content C:\Users\power\desktop\computers.txt
+
+Invoke-Command -ComputerName $computers -ScriptBlock { hostname } -ThrottleLimit 1
+
+ 
+
+Invoke-Command -ComputerName $computers -ScriptBlock { ipconfig.exe /flushdns }
+
+Invoke-Command -ComputerName $computers -ScriptBlock { Invoke-Expression "echo n | gpupdate /force" }
 
 #endregion
 
