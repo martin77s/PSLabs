@@ -113,6 +113,7 @@ $b = Get-Process
 
 $x = 1
 $x = 2
+$x = "asdasd"
 
 get-command New-Variable -Syntax
 get-help New-Variable
@@ -133,13 +134,14 @@ Remove-Variable pi2 -Force
 
 $number + 1
 123 + 1
+'123' + 1
 "hello " + "World"
 $n = Get-TheNumberOfUsersInAdThat....
 
 $num1 = [int](Get-Num)
 $num1 + 1
 
-$num2 = [int]12.34
+$num2 = [int]12.50
 $num3 = [double]12.34
 
 $num1 = "Martin"
@@ -235,15 +237,16 @@ ProcessName, Id, Handles | Sort-Object -Property `
 
 
 Get-Process p* | 
-    Select-Object -Property ProcessName, Id, Handles, BasePriority, MaxWorkingSet | 
+    Select-Object -Property ProcessName, Id, Handles, BasePriority | 
         Sort-Object -Property Handles -Descending | 
-            Select-Object -First 3 | Format-Table
+            Select-Object -First 3 | Format-Table | gm
 
+# Filter left, Format Right
 
 Get-Process p* | 
-    Select-Object -Property ProcessName, Id, Handles, BasePriority, MaxWorkingSet | 
+    Select-Object -Property ProcessName, Id, Handles, BasePriority | 
         Sort-Object -Property Handles -Descending |
-            Select-Object -First 3 | Format-Table | Get-Member
+            Select-Object -First 3 | Select-Object | gm
 
 
 Get-Process p* | 
@@ -256,7 +259,10 @@ Get-Process p* |
 Get-Service wi*
 Get-Service wi* | ft -AutoSize
 
+Get-Process | select-object  id, threads
+$FormatEnumerationLimit = 5
 $FormatEnumerationLimit = -1
+
 
 #endregion
 
@@ -270,6 +276,7 @@ if ($age -gt 18)
 {
     "Please select a drink"
 }
+
 
 
 if ($age -gt 18)
@@ -287,6 +294,9 @@ if(-not(Test-Path -Path C:\Temp\1)) {
     New-Item -Path C:\Temp\1 -ItemType Directory
 }
 
+New-Item -Path C:\Temp\1\2\3 -ItemType Directory
+New-Item -Path C:\Temp\1\2\3\5\6\7\8\9.txt -ItemType File -Value '23'
+
 if($x -gt 1) {
     "martin"
     start-service bits
@@ -298,6 +308,7 @@ if($x -gt 1) {
 # () - grouping, if condition, methods
 # {} - scriptblock, place holder for string format
 # [] - array, (syntax = optional)
+# <> - type in help or syntax
 
 
 $s = get-service bits
@@ -687,6 +698,8 @@ $ToD = "Afternoon"
 
 $s = Get-Service (Read-Host -Prompt 'Enter service')
 "The service " + $s.Name + " is now " + $s.Status
+"The service $s.Name is now $s.Status"
+
 
 "The service $($s.Name) is now $($s.Status)"
 

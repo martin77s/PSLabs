@@ -225,17 +225,12 @@ $p.Create('notepad.exe')
 Get-WmiObject -Class Win32_ComputerSystem -ComputerName 192.168.1.2
 
  
-
  
 
 Get-Content "C:\Users\power\Desktop\computers.txt" | % {
-
    #if(Test-Connection -ComputerName $_ -Count 1 -Quiet) {
-
    #if(Test-NetConnection -ComputerName $_ -CommonTCPPort SMB) {
-
        gwmi win32_computersystem -cn $_ -AsJob | Wait-Job -Timeout 4 | Receive-Job
-
    #}
 
 }
@@ -244,215 +239,118 @@ Get-Content "C:\Users\power\Desktop\computers.txt" | % {
 
 Start-Job -ScriptBlock { dir c:\ -Recurse }
 
- 
 
 $s = gwmi win32_service -fil "name='Winmgmt'" -cn Dc
 
  
 
- 
-
- 
-
 ## CIM
-
 # DCOM = 445 (RPC)
-
 # WSMAN = 5985/6 (WINRM)
-
  
-
 $dt = Get-WmiObject win32_operatingsystem -ComputerName MS
-
 $dt.ConvertToDateTime($dt.LastBootUpTime)
-
  
-
 $dt2 = Get-CimInstance -ClassName win32_operatingsystem -ComputerName MS
-
 $dt2.LastBootUpTime
-
  
-
  
-
  
-
 $options = New-CimSessionOption -Protocol Wsman # | dcom
-
 $session = New-CimSession -ComputerName MS -SessionOption $options
-
 Get-CimInstance -ClassName win32_process -CimSession $session
-
  
-
  
-
 Get-CimInstance -CimSession (New-CimSession -ComputerName MS -SessionOption `
-
    (New-CimSessionOption -Protocol Wsman)) -ClassName Win32_BIOS
-
  
-
 Get-CimInstance -CimSession (New-CimSession -ComputerName MS -SessionOption `
-
    (New-CimSessionOption -Protocol Dcom)) -ClassName Win32_BIOS
-
  
-
  
-
 Invoke-Command { start-service winrm } -cn MS
-
  
-
 $s = [wmi]"\ms\root\cimv2:win32_service.Name='winrm'"
-
 $s.StartService()
 
-
-## PSRemoting
-
+# PSRemoting
 # 5985/6
-
 # Windows Server < 2012 || Windows Client OS
-
 Enable-PSRemoting
-
 # Enable FW rules, Service WINRM start + auto, httplistner
-
  
-
 $cred = Get-Credential
-
 # 1:1:
-
 Invoke-Command -ComputerName MS -Credential $cred -ScriptBlock { hostname }
-
  
-
 Get-service BITS
-
 Invoke-Command -ComputerName MS,DC -Credential $cred -ScriptBlock { Get-service BITS }
-
  
-
 $s1 = get-service bits
-
 $s2 = Invoke-Command -ComputerName DC -Credential $cred -ScriptBlock { Get-service BITS }
-
  
-
 $s1 | gm
-
 $s2 | gm
-
  
-
 Get-Service BITS | Export-Clixml C:\temp\3.xml
-
 notepad C:\temp\3.xml
-
 $s3 = Import-Clixml C:\temp\3.xml
-
 $s3
-
  
-
  
-
  
-
 Invoke-Command -ComputerName DC -ScriptBlock { $d = get-date }
-
 Invoke-Command -ComputerName DC -ScriptBlock { $d }
-
  
-
  
-
 Invoke-Command -ComputerName DC -ScriptBlock { $pid }
-
  
-
  
-
 # 1:1 persistent
-
 $pssession = New-PSSession -ComputerName DC
-
  
-
 Invoke-Command -Session $pssession -ScriptBlock { $d = get-date }
-
 Invoke-Command -Session $pssession -ScriptBlock { $d }
-
  
-
  
-
 # 1:1 interactive
-
 Enter-PSSession -Session $pssession
-
 Exit-PSSession
-
 Invoke-Command -Session $pssession -ScriptBlock { $x }
-
  
-
  
-
 # 1:many
-
 $computers = get-content 'C:\Users\power\Desktop\computers.txt'
-
-Invoke-Command -ComputerName $computers -ScriptBlock { hostname }
-
+Invoke-Command -ComputerName $computers -ScriptBlock { 
+   hostname
+   ipconfig
+   get-service bits
+}
  
-
 $response = Invoke-Command -ComputerName $computers -ScriptBlock { hostname } -ThrottleLimit 1
 
- 
 
 $computes | % {
-
    Invoke-Command -ComputerName $_ -ScriptBlock { hostname }
-
    if($?) { .. }
-
 }
-
  
-
 # Real life examples
-
 Invoke-Command -ComputerName $computers -ScriptBlock { ipconfig.exe /flushdns }
-
  
-
 Invoke-Command -ComputerName $computers -ScriptBlock { invoke-expression 'echo n| gpupdate /force' }
-
  
-
  
-
 # Implicit remoting
-
 $s = New-PSSession -ComputerName DC
-
 Invoke-Command -Session $s -ScriptBlock { Import-Module ActiveDirectory }
-
 Import-PSSession -Session $s -Module ActiveDirectory -Prefix vvv
-
 Get-vvvADUser -Filter *
-
  
-
 gc function:Get-vvvADUser | clip
 
-
 #endregion
+
 
 
 #Splatting:
@@ -479,3 +377,29 @@ $paramsWmiQ = @{
 }
 Get-WmiObject @paramsWmiQ -ComputerName $env:COMPUTERNAME
 Get-WmiObject @paramsWmiQ -ComputerName 'localhost'
+
+
+
+
+function Get-SharePermisionsReport {
+    param(
+        $ComputerName = $env:COMPUTERNAME,
+        [switch] $ShowHiddenShare
+    )
+    foreach($computer in $ComputerName) {
+        #Invoke-Command -ComputerName $computer -ScriptBlock {
+            Get-WmiObject -Class Win32_Share | Where-Object { $ShowHiddenShare -or $_.Name -notlike '*$' } -PipelineVariable share | ForEach-Object {
+                (Get-Acl -Path $share.Path).Access | ForEach-Object {
+                    New-Object -TypeName psobject -Property @{
+                        ComputerName     = $computer
+                        ShareName        = $share.Name
+                        Path             = $share.Path
+                        RemotePath       = '\\{0}\{1}' -f $computer, ($share.Path -replace ':', '$')
+                        NTFS             = '{0} = {1}' -f $_.IdentityReference, $_.FileSystemRights
+                    }
+                }
+            }
+        #}
+    }
+}
+Get-SharePermisionsReport | ft #-ShowHiddenShare
