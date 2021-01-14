@@ -173,3 +173,309 @@ Parse-IisLog | ? { $_.DateTime -gt (Get-Date -Date '2013/07/30 00:00:10') }
 
 
 #endregion
+
+#region WMI and WSMAN
+
+
+### WMI
+
+
+Get-WmiObject -List *service*
+Get-WmiObject -List *proces*
+
+
+Get-WmiObject -Class win32_service | Select-Object -f 1 -pr *
+
+$x = [wmi]'\\MASCHVAR-T480\root\cimv2:Win32_Service.Name="bits"'
+$x | Get-Member
+$x.__PATH
+
+$dt = Get-WmiObject win32_operatingsystem 
+$dt.ConvertToDateTime($dt.LastBootUpTime)
+
+
+
+Get-WmiObject Win32_NetworkAdapterConfiguration | Where-Object { $_.IPEnabled } | ogv
+
+
+Get-WmiObject Win32_NetworkAdapterConfiguration -Filter "IPEnabled='True'" | ogv
+
+
+Get-WmiObject -Query "select * from Win32_NetworkAdapterConfiguration where IPEnabled='True'" | ogv
+
+
+
+
+Get-WmiObject -Property DHCPEnabled, IPAddress -Class Win32_NetworkAdapterConfiguration -Filter "IPEnabled='True'"
+Get-WmiObject -Query "select DHCPEnabled, IPAddress from Win32_NetworkAdapterConfiguration where IPEnabled='True'" 
+
+
+
+$p = [wmiclass]"\\MASCHVAR-T480\root\cimv2:Win32_Process"
+$p.Create('notepad.exe')
+
+
+
+$p = [wmiclass]"\DC\root\cimv2:Win32_Process"
+
+$p.Create('notepad.exe')
+
+ 
+
+Get-WmiObject -Class Win32_ComputerSystem -ComputerName 192.168.1.2
+
+ 
+
+ 
+
+Get-Content "C:\Users\power\Desktop\computers.txt" | % {
+
+   #if(Test-Connection -ComputerName $_ -Count 1 -Quiet) {
+
+   #if(Test-NetConnection -ComputerName $_ -CommonTCPPort SMB) {
+
+       gwmi win32_computersystem -cn $_ -AsJob | Wait-Job -Timeout 4 | Receive-Job
+
+   #}
+
+}
+
+ 
+
+Start-Job -ScriptBlock { dir c:\ -Recurse }
+
+ 
+
+$s = gwmi win32_service -fil "name='Winmgmt'" -cn Dc
+
+ 
+
+ 
+
+ 
+
+## CIM
+
+# DCOM = 445 (RPC)
+
+# WSMAN = 5985/6 (WINRM)
+
+ 
+
+$dt = Get-WmiObject win32_operatingsystem -ComputerName MS
+
+$dt.ConvertToDateTime($dt.LastBootUpTime)
+
+ 
+
+$dt2 = Get-CimInstance -ClassName win32_operatingsystem -ComputerName MS
+
+$dt2.LastBootUpTime
+
+ 
+
+ 
+
+ 
+
+$options = New-CimSessionOption -Protocol Wsman # | dcom
+
+$session = New-CimSession -ComputerName MS -SessionOption $options
+
+Get-CimInstance -ClassName win32_process -CimSession $session
+
+ 
+
+ 
+
+Get-CimInstance -CimSession (New-CimSession -ComputerName MS -SessionOption `
+
+   (New-CimSessionOption -Protocol Wsman)) -ClassName Win32_BIOS
+
+ 
+
+Get-CimInstance -CimSession (New-CimSession -ComputerName MS -SessionOption `
+
+   (New-CimSessionOption -Protocol Dcom)) -ClassName Win32_BIOS
+
+ 
+
+ 
+
+Invoke-Command { start-service winrm } -cn MS
+
+ 
+
+$s = [wmi]"\ms\root\cimv2:win32_service.Name='winrm'"
+
+$s.StartService()
+
+
+## PSRemoting
+
+# 5985/6
+
+# Windows Server < 2012 || Windows Client OS
+
+Enable-PSRemoting
+
+# Enable FW rules, Service WINRM start + auto, httplistner
+
+ 
+
+$cred = Get-Credential
+
+# 1:1:
+
+Invoke-Command -ComputerName MS -Credential $cred -ScriptBlock { hostname }
+
+ 
+
+Get-service BITS
+
+Invoke-Command -ComputerName MS,DC -Credential $cred -ScriptBlock { Get-service BITS }
+
+ 
+
+$s1 = get-service bits
+
+$s2 = Invoke-Command -ComputerName DC -Credential $cred -ScriptBlock { Get-service BITS }
+
+ 
+
+$s1 | gm
+
+$s2 | gm
+
+ 
+
+Get-Service BITS | Export-Clixml C:\temp\3.xml
+
+notepad C:\temp\3.xml
+
+$s3 = Import-Clixml C:\temp\3.xml
+
+$s3
+
+ 
+
+ 
+
+ 
+
+Invoke-Command -ComputerName DC -ScriptBlock { $d = get-date }
+
+Invoke-Command -ComputerName DC -ScriptBlock { $d }
+
+ 
+
+ 
+
+Invoke-Command -ComputerName DC -ScriptBlock { $pid }
+
+ 
+
+ 
+
+# 1:1 persistent
+
+$pssession = New-PSSession -ComputerName DC
+
+ 
+
+Invoke-Command -Session $pssession -ScriptBlock { $d = get-date }
+
+Invoke-Command -Session $pssession -ScriptBlock { $d }
+
+ 
+
+ 
+
+# 1:1 interactive
+
+Enter-PSSession -Session $pssession
+
+Exit-PSSession
+
+Invoke-Command -Session $pssession -ScriptBlock { $x }
+
+ 
+
+ 
+
+# 1:many
+
+$computers = get-content 'C:\Users\power\Desktop\computers.txt'
+
+Invoke-Command -ComputerName $computers -ScriptBlock { hostname }
+
+ 
+
+$response = Invoke-Command -ComputerName $computers -ScriptBlock { hostname } -ThrottleLimit 1
+
+ 
+
+$computes | % {
+
+   Invoke-Command -ComputerName $_ -ScriptBlock { hostname }
+
+   if($?) { .. }
+
+}
+
+ 
+
+# Real life examples
+
+Invoke-Command -ComputerName $computers -ScriptBlock { ipconfig.exe /flushdns }
+
+ 
+
+Invoke-Command -ComputerName $computers -ScriptBlock { invoke-expression 'echo n| gpupdate /force' }
+
+ 
+
+ 
+
+# Implicit remoting
+
+$s = New-PSSession -ComputerName DC
+
+Invoke-Command -Session $s -ScriptBlock { Import-Module ActiveDirectory }
+
+Import-PSSession -Session $s -Module ActiveDirectory -Prefix vvv
+
+Get-vvvADUser -Filter *
+
+ 
+
+gc function:Get-vvvADUser | clip
+
+
+#endregion
+
+
+#Splatting:
+
+Get-WmiObject -Namespace 'root\cimv2' -ComputerName $env:COMPUTERNAME -Class 'Win32_NetworkAdapterConfiguration' -Filter "IPEnabled='True'" -ThrottleLimit 1 -Impersonation Impersonate -Authentication PacketPrivacy
+
+Get-WmiObject `
+    -Namespace 'root\cimv2' `
+    -ComputerName $env:COMPUTERNAME `
+    -Class 'Win32_NetworkAdapterConfiguration' `
+    -Filter "IPEnabled='True'" `
+    -ThrottleLimit 1 `
+    -Impersonation Impersonate `
+    -Authentication PacketPrivacy
+
+
+$paramsWmiQ = @{
+    Namespace      = 'root\cimv2'
+    Class          = 'Win32_NetworkAdapterConfiguration'
+    Filter         = "IPEnabled='True'"
+    ThrottleLimit  = 1 
+    Impersonation  = 'Impersonate'
+    Authentication = 'PacketPrivacy'
+}
+Get-WmiObject @paramsWmiQ -ComputerName $env:COMPUTERNAME
+Get-WmiObject @paramsWmiQ -ComputerName 'localhost'
