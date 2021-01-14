@@ -140,4 +140,36 @@ if($?) {
     }
 }
 
+
+### LAB ###
+
+
+function Parse-IisLog {
+    param($LogFile = 'C:\gitRepos\PSLabs\Labs\iis.log')
+    $pattern = '^(?<dateTime>(?<date>\d{4}-\d{2}-\d{2})\s(?<time>\d{2}:\d{2}:\d{2}))\s(?<computerName>\S+)\s(\S+)\s(?<Method>\w+)\s(?<Url>\S+)\s'
+
+    '190.10.100.500' -match '(\d{1,3}\.){3}\d{1,3}'
+
+    #Get-Content -Path C:\gitRepos\PSLabs\Labs\iis.log | ? { $_ -notlike '#*' } | ForEach-Object {
+    Get-Content -Path $LogFile | ForEach-Object {
+        if($_ -match $pattern) {
+            # $Matches.Remove(0)
+            # New-Object -TypeName PSObject -Property $Matches
+            [pscustomobject]@{
+                #DateTime     = (Get-Date $Matches.dateTime)
+                DateTime     = [datetime]$Matches.dateTime
+                ComputerName = $Matches.computerName
+                Method       = $Matches.Method
+                Url          = $Matches.Url
+                Segments1     = ($Matches.Url -split '/').Count -1
+                Segments2     = ($Matches.Url.ToCharArray() -eq '/').Count
+            }
+        }
+    }
+}
+
+Parse-IisLog | ? { $_.Segments1 -eq 3 }
+Parse-IisLog | ? { $_.DateTime -gt (Get-Date -Date '2013/07/30 00:00:10') }
+
+
 #endregion
